@@ -5,7 +5,7 @@ import time
 
 camera = cv2.VideoCapture(0)
 
-label = "click"
+label = "chrome"
 size = 100
 
 newDir = "data\\"+label

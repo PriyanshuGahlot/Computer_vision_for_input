@@ -3,6 +3,8 @@ import mediapipe as mp
 import pyautogui as auto
 import pickle
 import numpy as np
+import AppOpener
+import time
 
 camera = cv2.VideoCapture(0)
 
@@ -15,6 +17,11 @@ camera = cv2.VideoCapture(0)
 
 model = pickle.load(open("model.p","rb"))["model"]
 
+
+lastOutput = ""
+lastPerformed = ""
+startTime = time.time()
+threstholdTime = 1
 
 
 while True:
@@ -33,11 +40,21 @@ while True:
                 temp.append(x)
                 temp.append(y)
         output = model.predict([np.asarray(temp)])
-        print(output)
-        if(output=="click"):
-            auto.mouseDown()
-        elif(output=="track"):
-            auto.mouseUp()
+
+        if (lastOutput != output):
+            lastOutput = output
+            startTime = time.time()
+
+        if (time.time() - startTime > threstholdTime and lastPerformed != output):
+            lastPerformed = output
+            startTime = time.time()
+            print(output)
+            if (output == "click"):
+                auto.click()
+            elif (output == "chrome"):
+                AppOpener.open("chrome", match_closest=True)
+            elif (output == "track"):
+                auto.mouseUp()
 
     rectangle_width = 480
     rectangle_height = 360

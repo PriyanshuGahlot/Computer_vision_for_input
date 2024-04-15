@@ -6,6 +6,11 @@ import numpy as np
 import AppOpener
 import time
 
+data = pickle.load(open("processed_data.pickle","rb"))
+
+labels = np.asarray(data["labels"])
+print(list(set(labels.tolist())))
+
 camera = cv2.VideoCapture(0)
 
 mp_hands = mp.solutions.hands
@@ -18,10 +23,13 @@ camera = cv2.VideoCapture(0)
 model = pickle.load(open("model.p","rb"))["model"]
 
 
-lastOutput = ""
-lastPerformed = ""
-startTime = time.time()
-threstholdTime = 1
+lastOutput = "track"
+
+threstholdCount = 5
+count = 0
+
+smooth_factor = 0.5
+current_mouse_pos = auto.position()
 
 
 while True:
@@ -40,21 +48,37 @@ while True:
                 temp.append(x)
                 temp.append(y)
         output = model.predict([np.asarray(temp)])
-
-        if (lastOutput != output):
-            lastOutput = output
-            startTime = time.time()
-
-        if (time.time() - startTime > threstholdTime and lastPerformed != output):
-            lastPerformed = output
-            startTime = time.time()
-            print(output)
-            if (output == "click"):
+        # print(output)
+        print(count)
+        if(output==lastOutput):
+            count+=1
+        else:
+            count=0
+        if(count>=threstholdCount):
+            if(output=="click"):
                 auto.click()
-            elif (output == "chrome"):
-                AppOpener.open("chrome", match_closest=True)
-            elif (output == "track"):
-                auto.mouseUp()
+                count=0
+            elif output in list(set(labels.tolist())):
+                AppOpener.open(output[0],match_closest=True)
+                count=0
+        lastOutput=output
+
+
+        # if (lastOutput != output or output=="track"):
+        #     lastOutput = output
+        #     startTime = time.time()
+        #
+        # if (time.time() - startTime > threstholdTime and lastPerformed != output):
+        #     lastPerformed = output
+        #     startTime = time.time()
+        #     print(output)
+        #     if (output == "click"):
+        #         auto.mouseDown()
+        #         auto.mouseUp()
+        #         lastOutput = output
+        #         startTime = time.time()
+        #     elif (output == "chrome"):
+        #         AppOpener.open("chrome", match_closest=True)
 
     rectangle_width = 480
     rectangle_height = 360
@@ -71,8 +95,14 @@ while True:
                 #frame is 640:480(4:3) use 600:450 then map that to the screens resolution
                 transformedX = (x/rectangle_width)*1920
                 transformedY = (y/rectangle_height)*1080
-                auto.moveTo(transformedX,transformedY)
-                cv2.circle(frame, (x, y), 5, (0, 255, 0), -1)
+                #this mouse movement has to be smoothen out
+                if transformedY <= 1080 and transformedX <= 1920:
+                    target_pos = (transformedX, transformedY)
+                    # Smooth out mouse movement
+                    current_mouse_pos = (current_mouse_pos[0] * (1 - smooth_factor) + target_pos[0] * smooth_factor,
+                                         current_mouse_pos[1] * (1 - smooth_factor) + target_pos[1] * smooth_factor)
+                    auto.moveTo(int(current_mouse_pos[0]), int(current_mouse_pos[1]))
+                    cv2.circle(frame, (x, y), 5, (0, 255, 0), -1)
 
 
     #Draw the rectangle on the frame
